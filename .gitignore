@@ -1,0 +1,38 @@
+# ─── OS / Editor ────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+*.suo
+*.user
+
+# ─── Environment / Secrets ──────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Python ─────────────────────────────────────────
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+dist/
+*.egg-info/
+
+# ─── Node / Frontend ────────────────────────────────
+node_modules/
+FRONTEND/dist/
+FRONTEND/build/
+FRONTEND/.next/
+FRONTEND/.nuxt/
+
+# ─── Backend (future) ───────────────────────────────
+BACKEND/bin/
+BACKEND/obj/
+BACKEND/__pycache__/
+BACKEND/venv/
+*.sqlite3
+
+# ─── Generated / Scratch ────────────────────────────
+references_text/
+extract.py
