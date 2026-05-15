@@ -15,6 +15,15 @@ const AmbientBackground = () => (
   </div>
 );
 
+/** Determine the default landing page for each role after login */
+const defaultRoute = (role) => {
+  if (role === 'admin')        return '/dashboard';
+  if (role === 'receptionist') return '/customers';
+  if (role === 'technician')   return '/workspace';
+  if (role === 'customer')     return '/tickets';
+  return '/tickets';
+};
+
 function App() {
   const { isAuthenticated, user } = useAuth();
   const role = user?.role;
@@ -33,22 +42,26 @@ function App() {
               </>
             ) : (
               <>
+                {/* Admin-only */}
                 {role === 'admin' && (
                   <Route path="/dashboard" element={<AdminDashboard />} />
                 )}
+
+                {/* Admin + Receptionist */}
                 {['admin', 'receptionist'].includes(role) && (
                   <Route path="/customers" element={<CustomerManagement />} />
                 )}
+
+                {/* All authenticated roles */}
                 <Route path="/tickets" element={<RepairTickets />} />
+
+                {/* Admin + Technician */}
                 {['admin', 'technician'].includes(role) && (
                   <Route path="/workspace" element={<TechnicianWorkspace />} />
                 )}
-                <Route path="*" element={
-                  <Navigate to={
-                    role === 'admin' ? '/dashboard' :
-                    role === 'technician' ? '/workspace' : '/tickets'
-                  } replace />
-                } />
+
+                {/* Catch-all: redirect to role's home */}
+                <Route path="*" element={<Navigate to={defaultRoute(role)} replace />} />
               </>
             )}
           </Routes>
