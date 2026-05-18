@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+// ============================================================
+//  CompRepair — Prisma Schema
+//  Database: PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  admin
+  receptionist
+  technician
+  customer
+}
+
+enum TicketStatus {
+  Received
+  In_Progress
+  Awaiting_Parts
+  Completed
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+// Covers all roles: admin, receptionist, technician, customer.
+// If role = customer, the `customer` relation will be populated.
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash — NEVER store plaintext
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A user with role=customer links to one Customer profile
+  customer  Customer?
+
+  // Tickets this user created (receptionist / admin)
+  createdTickets  Ticket[]      @relation("CreatedBy")
+
+  // Activity log entries this user authored
+  activityLogs    ActivityLog[]
+
+  @@map("users")
+}
+
+// ─── Customer ────────────────────────────────────────────────────────────────
+// Stores the shop's client profile (contact info, notes).
+// Separate from User so walk-in clients can exist without a login account.
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String   // personal/contact email (not login email)
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Optional link to a login account (null = walk-in / no portal access)
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // All repair tickets belonging to this customer
+  tickets   Ticket[]
+
+  @@map("customers")
+}
+
+// ─── Technician ──────────────────────────────────────────────────────────────
+// Separate profile for technicians (maps to a User with role=technician).
+// Holds tech-specific info and their assigned tickets.
+
+model Technician {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Tickets assigned to this technician
+  tickets   Ticket[]
+
+  @@map("technicians")
+}
+
+// ─── Ticket ──────────────────────────────────────────────────────────────────
+// Core entity. One repair job = one ticket.
+
+model Ticket {
+  id          String       @id @default(cuid())
+  ticketCode  String       @unique // Human-readable: "RT-1042", auto-generated in app logic
+  status      TicketStatus @default(Received)
+  device      String       // e.g. "MacBook Pro 16 M1"
+  issue       String       // short fault description from reception
+  clientNote  String       @default("") // what the client said verbatim
+  findings    String       @default("") // technician's diagnostic notes (visible to client)
+  privateNote String       @default("") // internal tech notes (hidden from client)
+  date        DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+
+  technicianId  String?
+  technician    Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+
+  createdById   String?
+  createdBy     User?       @relation("CreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Child records
+  parts         TicketPart[]
+  activityLogs  ActivityLog[]
+
+  @@map("tickets")
+}
+
+// ─── TicketPart ──────────────────────────────────────────────────────────────
+// Parts/components required for a repair (many per ticket).
+// e.g. "Apple OEM Battery 100Wh (A2166)"
+
+model TicketPart {
+  id          String   @id @default(cuid())
+  description String   // part name / SKU / OEM code
+  createdAt   DateTime @default(now())
+
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_parts")
+}
+
+// ─── ActivityLog ─────────────────────────────────────────────────────────────
+// Append-only audit trail per ticket.
+// e.g. "Status → In Progress", "Findings/notes updated"
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String   // human-readable description of what happened
+  createdAt DateTime @default(now())
+
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("activity_logs")
+}
