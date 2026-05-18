@@ -58,3 +58,13 @@ npm run dev
 cd BACKEND
 npx prisma studio
 ```
+
+---
+
+## 4. Database Setup
+ 
+1. Download the backup file
+2. Open **pgAdmin 4**
+3. Create a new database
+4. Right-click the new database and select **Restore**
+5. Choose the downloaded backup file and confirm to restore
