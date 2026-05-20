@@ -81,8 +81,14 @@ const CustomerDropdown = ({ customers, value, onChange }) => {
 
   // focus search input when dropdown opens
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 60);
-    else setSearch('');
+    if (open) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 60);
+    } else {
+      const t = setTimeout(() => setSearch(''), 0);
+      return () => clearTimeout(t);
+    }
   }, [open]);
 
   return (
@@ -220,42 +226,6 @@ const CustomerDropdown = ({ customers, value, onChange }) => {
         )}
       </AnimatePresence>
     </div>
-  );
-};
-
-const TicketMenu = ({ ticket, role, onClose, onViewDetail, onUpdateStatus }) => {
-  const canEdit = ['admin', 'receptionist', 'technician'].includes(role);
-  const items = [
-    { label: 'View Details', action: onViewDetail, always: true },
-    ...(canEdit ? [
-      { label: 'Mark Received', action: () => onUpdateStatus('Received') },
-      { label: 'Mark In Progress', action: () => onUpdateStatus('In Progress') },
-      { label: 'Mark Awaiting Parts', action: () => onUpdateStatus('Awaiting Parts') },
-      { label: 'Mark Completed', action: () => onUpdateStatus('Completed') },
-    ] : []),
-  ];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.92, y: -6 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.92 }}
-      transition={{ duration: 0.13 }}
-      style={{
-        position: 'absolute', right: 0, top: '110%', zIndex: 200,
-        background: 'var(--bg-surface-2)', border: '1px solid var(--border-2)',
-        borderRadius: 12, padding: '0.4rem', minWidth: 195,
-        backdropFilter: 'blur(24px)', boxShadow: '0 12px 36px rgba(0,0,0,0.55)',
-      }}
-    >
-      {items.map(({ label, action }) => (
-        <button key={label} className="btn btn-ghost"
-          style={{ width: '100%', justifyContent: 'flex-start', padding: '0.55rem 0.75rem', fontSize: '0.82rem', borderRadius: 8 }}
-          onClick={() => { action(); onClose(); }}>
-          {label}
-        </button>
-      ))}
-    </motion.div>
   );
 };
 
@@ -596,7 +566,7 @@ const RepairTickets = () => {
                     { icon: <Wrench size={14} />, label: 'Device', value: live.device, span: true },
                     { icon: <AlertCircle size={14} />, label: 'Issue', value: live.issue, span: true },
                     { icon: <Calendar size={14} />, label: 'Date Submitted', value: typeof live.date === 'string' ? live.date.split('T')[0] : new Date(live.date).toISOString().split('T')[0] },
-                    { icon: <Calendar size={14} />, label: live.status === 'Completed' ? 'Date Completed' : 'Est. Pickup', value: live.status === 'Completed' ? (typeof live.updatedAt === 'string' ? live.updatedAt.split('T')[0] : new Date(live.updatedAt ?? Date.now()).toISOString().split('T')[0]) : 'Pending' },
+                    { icon: <Calendar size={14} />, label: live.status === 'Completed' ? 'Date Completed' : 'Est. Pickup', value: live.status === 'Completed' ? (live.updatedAt ? (typeof live.updatedAt === 'string' ? live.updatedAt.split('T')[0] : new Date(live.updatedAt).toISOString().split('T')[0]) : '—') : 'Pending' },
                     { icon: <User size={14} />, label: 'Assigned To', value: tech?.name ?? live.techName ?? '—', span: true },
                   ].map(({ icon, label, value, span }) => (
                     <div key={label} style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', gridColumn: span ? '1 / -1' : undefined }}>

@@ -50,7 +50,7 @@ export const DataProvider = ({ children }) => {
         .then(setTechnicians)
         .catch(err => console.error('[DataContext] technicians fetch failed:', err));
     }
-  }, [role]);
+  }, [role, isAdmin, isStaff]);
 
   const createTicket = useCallback(async (payload) => {
     const created = await ticketsAPI.create({
@@ -186,6 +186,7 @@ export const DataProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useData = () => {
   const ctx = useContext(DataContext);
   if (!ctx) throw new Error('useData must be used within a DataProvider');

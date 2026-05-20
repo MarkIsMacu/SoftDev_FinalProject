@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { LayoutDashboard, Users, Wrench, FileText, LogOut, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 

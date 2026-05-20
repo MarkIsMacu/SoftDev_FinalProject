@@ -1,4 +1,4 @@
-export const generatePDFReport = ({ type, fromDate, toDate, tickets, customers, stats }) => {
+export const generatePDFReport = ({ type, fromDate, toDate, tickets, customers }) => {
   const now = new Date().toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' });
 
   const toDateStr = (d) =>

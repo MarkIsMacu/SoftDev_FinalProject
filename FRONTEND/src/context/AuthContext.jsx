@@ -6,20 +6,27 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('auth_token'));
-  const [loading, setLoading] = useState(!!localStorage.getItem('auth_token')); // rehydrating?
+  const [loading, setLoading] = useState(!!localStorage.getItem('auth_token'));
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
+    const storedToken = localStorage.getItem('auth_token');
+    if (!storedToken) {
+      setTimeout(() => setLoading(false), 0);
+      return;
+    }
 
     authAPI.getMe()
-      .then((me) => setUser(me))
+      .then((me) => {
+        setUser(me);
+        setLoading(false);
+      })
       .catch(() => {
         localStorage.removeItem('auth_token');
         setToken(null);
         setUser(null);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+        setLoading(false);
+      });
+  }, [token]);
 
   const login = useCallback(async (email, password) => {
     try {
@@ -49,6 +56,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider');

@@ -6,7 +6,7 @@ import {
 import {
   TrendingUp, Users, Wrench, CheckCircle, X, Download, FileText,
   RefreshCw, Trash2, Edit2, Search, ShieldCheck, UserCog, Ticket,
-  Calendar, AlertCircle, Plus, Save,
+  Calendar, AlertCircle, Save,
 } from 'lucide-react';
 import { useData } from '../context/DataContext.jsx';
 import { generatePDFReport } from '../utils/pdfReport.js';
@@ -45,7 +45,7 @@ const fmtDate = (d) => {
 };
 
 // ── Toast ──────────────────────────────────────────────────────────────────────
-const Toast = ({ msg, type = 'info', onClose }) => (
+const Toast = ({ msg, onClose }) => (
   <motion.div
     initial={{ opacity: 0, y: 24, scale: 0.95 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}

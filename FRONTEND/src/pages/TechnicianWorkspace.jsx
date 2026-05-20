@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, Save, AlertCircle, Terminal,
@@ -71,9 +71,12 @@ const TechnicianWorkspace = () => {
   const myTech = technicians.find(t => t.email === user?.email) ?? technicians[0];
   const myTechId = myTech?.id ?? null;
 
-  const queue = myTechId
-    ? tickets.filter(t => t.assignedTo === myTechId && t.status !== 'Completed')
-    : [];
+  const queue = useMemo(
+    () => myTechId
+      ? tickets.filter(t => t.assignedTo === myTechId && t.status !== 'Completed')
+      : [],
+    [tickets, myTechId]
+  );
 
   const [activeId, setActiveId] = useState(null);
   const [localWork, setLocalWork] = useState({});
@@ -81,7 +84,10 @@ const TechnicianWorkspace = () => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    if (!activeId && queue.length > 0) setActiveId(queue[0].id);
+    if (!activeId && queue.length > 0) {
+      const t = setTimeout(() => setActiveId(queue[0].id), 0);
+      return () => clearTimeout(t);
+    }
   }, [queue, activeId]);
 
   const handleSelectTicket = (id) => {

@@ -42,7 +42,7 @@ router.patch(
   '/:id',
   authorize('admin'),
   async (req: AuthRequest, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { name, email, role, password } = req.body;
 
     if (!name && !email && !role && !password) {
@@ -108,7 +108,7 @@ router.delete(
   '/:id',
   authorize('admin'),
   async (req: AuthRequest, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (id === req.user!.id) {
       res.status(400).json({ message: 'You cannot delete your own account.' });
