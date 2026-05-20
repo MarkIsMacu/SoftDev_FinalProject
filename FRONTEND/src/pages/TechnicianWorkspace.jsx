@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Save, AlertCircle, Terminal, PlusCircle, Tag, X, CheckCircle } from 'lucide-react';
+import {
+  Activity, Save, AlertCircle, Terminal,
+  PlusCircle, Tag, X, CheckCircle,
+  Calendar, User, Cpu,
+} from 'lucide-react';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const STATUS_COLORS = {
-  'In Progress': 'var(--primary)',
+  'In Progress':    'var(--primary)',
   'Awaiting Parts': 'var(--warning)',
-  'Received': 'var(--text-3)',
-  'Completed': 'var(--success)',
+  'Received':       'var(--text-3)',
+  'Completed':      'var(--success)',
+};
+const STATUS_BG = {
+  'In Progress':    'rgba(0,229,255,0.12)',
+  'Awaiting Parts': 'rgba(255,171,0,0.12)',
+  'Received':       'rgba(255,255,255,0.06)',
+  'Completed':      'rgba(0,230,118,0.12)',
 };
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
@@ -34,6 +44,25 @@ const Toast = ({ msg, onClose }) => (
     </button>
   </motion.div>
 );
+
+const InfoPill = ({ icon, label, value, color }) => (
+  <div style={{
+    display: 'flex', alignItems: 'center', gap: '0.45rem',
+    padding: '0.4rem 0.8rem', borderRadius: 10,
+    background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-1)',
+    fontSize: '0.78rem',
+  }}>
+    <span style={{ color: color ?? 'var(--text-3)', display: 'flex' }}>{icon}</span>
+    <span style={{ color: 'var(--text-3)', fontFamily: 'var(--font-display)', fontSize: '0.67rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+    <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{value || '—'}</span>
+  </div>
+);
+
+const fmtDate = (d) => {
+  if (!d) return '—';
+  const s = typeof d === 'string' ? d : new Date(d).toISOString();
+  return s.split('T')[0];
+};
 
 const TechnicianWorkspace = () => {
   const { user } = useAuth();
@@ -164,33 +193,52 @@ const TechnicianWorkspace = () => {
 
         <motion.div variants={item} style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: 0 }}>
 
-          <div className="card" style={{ width: 300, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '1.5rem 1.5rem 1rem', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <Activity size={16} color="var(--primary)" />
-              <span className="display" style={{ fontSize: '0.9rem' }}>My Queue</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-3)' }}>{queue.length} tickets</span>
+          {/* ── Queue Sidebar ── */}
+          <div className="card" style={{ width: 260, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '1.1rem 1.1rem 0.7rem', borderBottom: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+              <Activity size={14} color="var(--primary)" />
+              <span className="display" style={{ fontSize: '0.82rem' }}>My Queue</span>
+              <span style={{
+                marginLeft: 'auto', background: 'rgba(0,229,255,0.12)', color: 'var(--primary)',
+                borderRadius: 20, padding: '0.1rem 0.55rem', fontSize: '0.7rem', fontWeight: 700,
+              }}>
+                {queue.length}
+              </span>
             </div>
-            <div style={{ overflowY: 'auto', flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <div style={{ overflowY: 'auto', flex: 1, padding: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
               {queue.map(t => {
                 const liveStatus = localWork[t.id]?.status ?? t.status;
+                const isActive = activeId === t.id;
                 return (
                   <motion.div key={t.id}
-                    whileHover={{ x: 3 }} whileTap={{ scale: 0.98 }}
+                    whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}
                     onClick={() => handleSelectTicket(t.id)}
                     style={{
-                      padding: '1rem', borderRadius: 12, cursor: 'pointer',
-                      background: activeId === t.id ? 'var(--primary-dim)' : 'rgba(255,255,255,0.025)',
-                      border: `1px solid ${activeId === t.id ? 'rgba(0,229,255,0.35)' : 'var(--border-1)'}`,
-                      transition: 'all 0.2s',
+                      padding: '0.8rem 0.9rem', borderRadius: 10, cursor: 'pointer',
+                      background: isActive ? 'var(--primary-dim)' : 'rgba(255,255,255,0.025)',
+                      border: `1px solid ${isActive ? 'rgba(0,229,255,0.4)' : 'var(--border-1)'}`,
+                      transition: 'all 0.18s',
                     }}
                   >
-                    <div className="mono" style={{ fontSize: '0.78rem', color: activeId === t.id ? 'var(--primary)' : 'var(--text-3)', marginBottom: '0.3rem' }}>
-                      {t.ticketCode ?? t.id}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span className="mono" style={{ fontSize: '0.73rem', color: isActive ? 'var(--primary)' : 'var(--text-3)', fontWeight: 700 }}>
+                        {t.ticketCode ?? t.id}
+                      </span>
+                      <span style={{
+                        fontSize: '0.62rem', fontWeight: 700, fontFamily: 'var(--font-display)',
+                        color: STATUS_COLORS[liveStatus], background: STATUS_BG[liveStatus],
+                        borderRadius: 5, padding: '0.08rem 0.4rem',
+                      }}>
+                        {liveStatus}
+                      </span>
                     </div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.25rem', lineHeight: 1.3 }}>{t.device}</div>
-                    <div style={{ fontSize: '0.73rem', color: 'var(--text-3)', marginBottom: '0.4rem', lineHeight: 1.4 }}>{t.issue}</div>
-                    <div style={{ fontSize: '0.72rem', color: STATUS_COLORS[liveStatus] ?? 'var(--text-3)', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                      ● {liveStatus}
+                    <div style={{ fontSize: '0.83rem', fontWeight: 600, marginBottom: '0.18rem', lineHeight: 1.3 }}>{t.device}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', lineHeight: 1.4, marginBottom: '0.28rem' }}>{t.issue}</div>
+                    <div style={{ fontSize: '0.66rem', color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <User size={9} /> {t.customerName}
+                      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                        <Calendar size={9} /> {fmtDate(t.date)}
+                      </span>
                     </div>
                   </motion.div>
                 );
@@ -198,59 +246,78 @@ const TechnicianWorkspace = () => {
             </div>
           </div>
 
+          {/* ── Ticket Detail Panel ── */}
           {activeTicket && work ? (
             <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
               {/* Header */}
-              <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--border-1)', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.3rem' }}>
-                    <span className="mono" style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 700 }}>
-                      {activeTicket.ticketCode ?? activeId}
-                    </span>
-                    <span className="badge badge-progress">{work.status}</span>
-                    <span className="mono" style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
-                      client: {activeTicket.customerName}
-                    </span>
+              <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid var(--border-1)', background: 'rgba(0,0,0,0.18)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.85rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '0.3rem' }}>
+                      <span className="mono" style={{ fontSize: '1.05rem', color: 'var(--primary)', fontWeight: 700 }}>
+                        {activeTicket.ticketCode ?? activeId}
+                      </span>
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, fontFamily: 'var(--font-display)',
+                        color: STATUS_COLORS[work.status], background: STATUS_BG[work.status],
+                        borderRadius: 7, padding: '0.2rem 0.6rem', border: `1px solid ${STATUS_COLORS[work.status]}44`,
+                      }}>
+                        {work.status}
+                      </span>
+                    </div>
+                    <p style={{ color: 'var(--text-2)', fontSize: '0.88rem', fontWeight: 500 }}>
+                      {activeTicket.device}
+                      <span style={{ color: 'var(--text-3)' }}> — {activeTicket.issue}</span>
+                    </p>
                   </div>
-                  <p style={{ color: 'var(--text-2)', fontSize: '0.88rem' }}>
-                    {activeTicket.device} — <span style={{ color: 'var(--text-3)' }}>{activeTicket.issue}</span>
-                  </p>
+                  <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', flexShrink: 0 }}>
+                    <select className="input"
+                      value={work.status}
+                      onChange={e => updateLocal(activeId, 'status', e.target.value)}
+                      style={{ width: 'auto', padding: '0.45rem 0.85rem', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.82rem' }}>
+                      <option value="Received">Received</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Awaiting Parts">Awaiting Parts</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                    <motion.button className="btn btn-primary"
+                      whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}
+                      onClick={handleSave} style={{ gap: '0.45rem', whiteSpace: 'nowrap' }}>
+                      {saving
+                        ? <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}>Saving…</motion.span>
+                        : <><Save size={14} /> Save & Update</>
+                      }
+                    </motion.button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexShrink: 0 }}>
-                  <select className="input"
-                    value={work.status}
-                    onChange={e => updateLocal(activeId, 'status', e.target.value)}
-                    style={{ width: 'auto', padding: '0.5rem 1rem', fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem' }}>
-                    <option value="Received">Received</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Awaiting Parts">Awaiting Parts</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                  <motion.button className="btn btn-primary"
-                    whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}
-                    onClick={handleSave} style={{ gap: '0.5rem' }}>
-                    {saving
-                      ? <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}>Saving…</motion.span>
-                      : <><Save size={16} /> Save & Update</>
-                    }
-                  </motion.button>
+
+                {/* Info pills row */}
+                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <InfoPill icon={<User size={11} />} label="Client" value={activeTicket.customerName} color="var(--primary)" />
+                  <InfoPill icon={<Calendar size={11} />} label="Date Submitted" value={fmtDate(activeTicket.date)} />
+                  <InfoPill icon={<Cpu size={11} />} label="Device" value={activeTicket.device} />
+                  {work.status === 'Completed' && (
+                    <InfoPill icon={<Calendar size={11} />} label="Completed" value={fmtDate(new Date())} color="var(--success)" />
+                  )}
                 </div>
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+              {/* Body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
                 {activeTicket.clientNote && (
-                  <div style={{ display: 'flex', gap: '1rem', padding: '1.25rem', borderRadius: 12, background: 'var(--warning-dim)', border: '1px solid rgba(255,94,138,0.2)' }}>
-                    <AlertCircle size={20} color="var(--warning)" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ display: 'flex', gap: '0.85rem', padding: '1rem 1.1rem', borderRadius: 12, background: 'var(--warning-dim)', border: '1px solid rgba(255,94,138,0.2)' }}>
+                    <AlertCircle size={17} color="var(--warning)" style={{ flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <p className="label" style={{ color: 'var(--warning)', marginBottom: '0.4rem' }}>Client Report</p>
-                      <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>{activeTicket.clientNote}</p>
+                      <p className="label" style={{ color: 'var(--warning)', marginBottom: '0.3rem' }}>Client Report</p>
+                      <p style={{ fontSize: '0.87rem', lineHeight: 1.6 }}>{activeTicket.clientNote}</p>
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
                     <Terminal size={13} /> Diagnostic Findings
                     <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--text-3)', fontSize: '0.7rem' }}>(visible to client and admin)</span>
                   </label>
@@ -263,7 +330,7 @@ const TechnicianWorkspace = () => {
                 </div>
 
                 <div>
-                  <label className="label">
+                  <label className="label" style={{ marginBottom: '0.5rem' }}>
                     Internal Notes <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--text-3)' }}>(hidden from client)</span>
                   </label>
                   <textarea className="input"
@@ -275,10 +342,10 @@ const TechnicianWorkspace = () => {
                 </div>
 
                 <div>
-                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
                     <Tag size={13} /> Parts Requisition
                   </label>
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.65rem' }}>
                     <input className="input"
                       placeholder="Part number, OEM SKU, or description…"
                       value={work.partInput ?? ''}
@@ -288,14 +355,14 @@ const TechnicianWorkspace = () => {
                       whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
                       style={{ whiteSpace: 'nowrap', gap: '0.4rem' }}
                       onClick={handleAddPart}>
-                      <PlusCircle size={16} /> Add
+                      <PlusCircle size={15} /> Add
                     </motion.button>
                   </div>
                   <AnimatePresence>
                     {(work.parts ?? []).length > 0 && (
                       <motion.div
                         initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        style={{ marginTop: '0.65rem', display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
                         {(work.parts ?? []).map(p => (
                           <motion.span key={p}
                             initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
@@ -313,19 +380,6 @@ const TechnicianWorkspace = () => {
                   </AnimatePresence>
                 </div>
 
-                {activeTicket.activityLog?.length > 0 && (
-                  <div style={{ padding: '1.25rem', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-1)' }}>
-                    <p className="label" style={{ marginBottom: '0.75rem' }}>Activity Log</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {activeTicket.activityLog.map((e, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                          <span style={{ color: 'var(--text-2)' }}>{e.action} <span style={{ color: 'var(--text-3)' }}>· {e.by}</span></span>
-                          <span className="mono" style={{ color: 'var(--text-3)', fontSize: '0.7rem' }}>{e.time}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           ) : (

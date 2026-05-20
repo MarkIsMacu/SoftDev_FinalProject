@@ -281,4 +281,21 @@ router.post(
   },
 );
 
+// DELETE /tickets/:id — admin removes a ticket entirely
+router.delete(
+  '/:id',
+  authorize('admin'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const id = req.params.id as string;
+    try {
+      await prisma.ticket.delete({ where: { id } });
+      res.status(200).json({ message: 'Ticket deleted.' });
+    } catch (err: any) {
+      if (err.code === 'P2025') { res.status(404).json({ message: 'Ticket not found.' }); return; }
+      console.error('[tickets/DELETE]', err);
+      res.status(500).json({ message: 'Internal server error.' });
+    }
+  },
+);
+
 export default router;

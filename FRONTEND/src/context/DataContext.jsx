@@ -14,6 +14,7 @@ export const DataProvider = ({ children }) => {
   const [tickets, setTickets] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [technicians, setTechnicians] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [activity, setActivity] = useState([]);
 
@@ -38,6 +39,10 @@ export const DataProvider = ({ children }) => {
       dashboardAPI.getActivity()
         .then(setActivity)
         .catch(err => console.error('[DataContext] activity fetch failed:', err));
+
+      usersAPI.getAll()
+        .then(setAllUsers)
+        .catch(err => console.error('[DataContext] allUsers fetch failed:', err));
     }
 
     if (isStaff || role === 'technician') {
@@ -90,6 +95,29 @@ export const DataProvider = ({ children }) => {
     return created;
   }, []);
 
+  const deleteTicket = useCallback(async (ticketId) => {
+    await ticketsAPI.delete(ticketId);
+    setTickets(prev => prev.filter(t => t.id !== ticketId));
+    if (isAdmin) dashboardAPI.getStats().then(setStats).catch(() => {});
+  }, [isAdmin]);
+
+  const fetchAllUsers = useCallback(async () => {
+    const users = await usersAPI.getAll();
+    setAllUsers(users);
+    return users;
+  }, []);
+
+  const updateUser = useCallback(async (userId, data) => {
+    const updated = await usersAPI.update(userId, data);
+    setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updated } : u));
+    return updated;
+  }, []);
+
+  const deleteUser = useCallback(async (userId) => {
+    await usersAPI.delete(userId);
+    setAllUsers(prev => prev.filter(u => u.id !== userId));
+  }, []);
+
   const getTicketsForTech = useCallback((techId) =>
     tickets.filter(t => t.assignedTo === techId && t.status !== 'Completed'),
     [tickets]
@@ -136,11 +164,16 @@ export const DataProvider = ({ children }) => {
       tickets,
       customers,
       technicians,
+      allUsers,
       activity,
       createTicket,
       updateTicketStatus,
       updateTicketWorkData,
       registerCustomer,
+      deleteTicket,
+      fetchAllUsers,
+      updateUser,
+      deleteUser,
       getTicketsForTech,
       getTicketsForCustomer,
       getStats,

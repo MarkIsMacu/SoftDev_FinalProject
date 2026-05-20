@@ -92,11 +92,15 @@ export const ticketsAPI = {
 
   assignTechnician: (id, techId) =>
     api.patch(`/tickets/${id}/assign`, { technicianId: techId }),
+
+  delete: (id) => api.delete(`/tickets/${id}`),
 };
 
 export const usersAPI = {
   getAll: () => api.get('/users'),
   getTechnicians: () => api.get('/users?role=technician'),
+  update: (id, data) => api.patch(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
 };
 
 export default api;

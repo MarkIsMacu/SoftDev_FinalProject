@@ -22,12 +22,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const { token: newToken, user: newUser } = await authAPI.login(email, password);
-
-    localStorage.setItem('auth_token', newToken);
-    setToken(newToken);
-    setUser(newUser);
-    return true;
+    try {
+      const { token: newToken, user: newUser } = await authAPI.login(email, password);
+      localStorage.setItem('auth_token', newToken);
+      setToken(newToken);
+      setUser(newUser);
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const logout = useCallback(async () => {
