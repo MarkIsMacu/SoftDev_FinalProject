@@ -54,6 +54,9 @@ model User {
   // Activity log entries this user authored
   activityLogs    ActivityLog[]
 
+  // Ticket messages sent by this user
+  ticketMessages  TicketMessage[]
+
   @@map("users")
 }
 
@@ -126,6 +129,7 @@ model Ticket {
   // Child records
   parts         TicketPart[]
   activityLogs  ActivityLog[]
+  messages      TicketMessage[]
 
   @@map("tickets")
 }
@@ -161,4 +165,22 @@ model ActivityLog {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("activity_logs")
+}
+
+// ─── TicketMessage ────────────────────────────────────────────────────────────
+// Customer ↔ Staff messaging thread per ticket.
+// Customers can message staff; staff can reply.
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  body      String   // message text
+  createdAt DateTime @default(now())
+
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_messages")
 }

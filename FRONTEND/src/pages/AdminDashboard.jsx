@@ -4,7 +4,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  TrendingUp, Users, Wrench, CheckCircle, X, Download, FileText,
+  Activity, Users, Wrench, CheckCircle, X, Download, FileText,
   RefreshCw, Trash2, Edit2, Search, ShieldCheck, UserCog, Ticket,
   Calendar, AlertCircle, Save,
 } from 'lucide-react';
@@ -15,13 +15,13 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.09 } } 
 const item = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } } };
 
 const CHART_DATA = [
-  { day: 'Mon', revenue: 14200, repairs: 6 },
-  { day: 'Tue', revenue: 18700, repairs: 9 },
-  { day: 'Wed', revenue: 12300, repairs: 5 },
-  { day: 'Thu', revenue: 22100, repairs: 11 },
-  { day: 'Fri', revenue: 19400, repairs: 8 },
-  { day: 'Sat', revenue: 26500, repairs: 14 },
-  { day: 'Sun', revenue: 11800, repairs: 4 },
+  { day: 'Mon', repairs: 6 },
+  { day: 'Tue', repairs: 9 },
+  { day: 'Wed', repairs: 5 },
+  { day: 'Thu', repairs: 11 },
+  { day: 'Fri', repairs: 8 },
+  { day: 'Sat', repairs: 14 },
+  { day: 'Sun', repairs: 4 },
 ];
 
 const ROLE_COLORS = {
@@ -101,8 +101,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   return (
     <div className="card" style={{ padding: '0.75rem 1rem', border: '1px solid var(--border-2)', fontSize: '0.8rem' }}>
       <p style={{ color: 'var(--text-2)', marginBottom: '0.25rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>{label}</p>
-      <p style={{ color: 'var(--primary)', fontWeight: 700 }}>₱{payload[0]?.value?.toLocaleString()}</p>
-      <p style={{ color: 'var(--success)' }}>{payload[1]?.value} repairs</p>
+      <p style={{ color: 'var(--success)', fontWeight: 700 }}>{payload[0]?.value} repairs</p>
     </div>
   );
 };
@@ -276,18 +275,25 @@ const AdminDashboard = () => {
 
         {/* ── KPI Cards ── */}
         <motion.div variants={item} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem', marginBottom: '2rem' }}>
-          <KpiCard title="Net Revenue"    value="₱124,500"                trend="+14.5%" trendUp icon={<TrendingUp size={22} />} color="var(--success)" />
+          <KpiCard
+            title="Completion Rate"
+            value={liveStats.totalTickets > 0 ? `${Math.round((liveStats.completed / liveStats.totalTickets) * 100)}%` : '—'}
+            trend={liveStats.completed > 0 ? `${liveStats.completed} done` : undefined}
+            trendUp
+            icon={<Activity size={22} />}
+            color="var(--success)"
+          />
           <KpiCard title="Total Clients"  value={String(customers.length)} trend="+5.2%"  trendUp icon={<Users size={22} />}     color="var(--primary)" />
           <KpiCard title="In Progress"    value={String(liveStats.inProgress)}             icon={<Wrench size={22} />}     color="var(--accent)"  />
           <KpiCard title="Completed"      value={String(liveStats.completed)} trend="+12%" trendUp icon={<CheckCircle size={22} />} color="var(--success)" />
         </motion.div>
 
-        {/* ── Revenue Chart ── */}
+        {/* ── Repair Volume Chart ── */}
         <motion.div variants={item} className="card" style={{ padding: '2rem', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <div>
-              <h3 className="display" style={{ fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Revenue Overview</h3>
-              <p style={{ color: 'var(--text-2)', fontSize: '0.85rem', marginTop: '0.25rem' }}>7-day performance window</p>
+              <h3 className="display" style={{ fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Repair Volume Overview</h3>
+              <p style={{ color: 'var(--text-2)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Weekly repair throughput · last 7 days</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--success)' }}>
               <div className="live-dot" /> Live
@@ -296,12 +302,8 @@ const AdminDashboard = () => {
           <ResponsiveContainer width="100%" height={230}>
             <AreaChart data={CHART_DATA} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                </linearGradient>
                 <linearGradient id="repGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--success)" stopOpacity={0.25} />
+                  <stop offset="0%" stopColor="var(--success)" stopOpacity={0.35} />
                   <stop offset="100%" stopColor="var(--success)" stopOpacity={0} />
                 </linearGradient>
               </defs>
@@ -309,7 +311,6 @@ const AdminDashboard = () => {
               <XAxis dataKey="day" tick={{ fill: 'var(--text-3)', fontSize: 12, fontFamily: 'var(--font-display)' }} axisLine={false} tickLine={false} />
               <YAxis hide />
               <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }} />
-              <Area type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2} fill="url(#revGrad)" dot={false} />
               <Area type="monotone" dataKey="repairs" stroke="var(--success)" strokeWidth={2} fill="url(#repGrad)" dot={false} />
             </AreaChart>
           </ResponsiveContainer>

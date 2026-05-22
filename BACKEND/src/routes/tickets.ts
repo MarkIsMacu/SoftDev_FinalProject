@@ -176,7 +176,7 @@ router.post(
 
 router.patch(
   '/:id/status',
-  authorize('admin', 'receptionist', 'technician'),
+  authorize('admin', 'technician'),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const rawStatus = req.body.status;
     const normStatus = rawStatus ? normaliseStatus(rawStatus) : null;
@@ -276,6 +276,85 @@ router.post(
       res.status(201).json({ message: 'Note added.' });
     } catch (err) {
       console.error('[tickets/POST/notes]', err);
+      res.status(500).json({ message: 'Internal server error.' });
+    }
+  },
+);
+
+// ── GET /tickets/:id/messages ─────────────────────────────────────────────────
+router.get(
+  '/:id/messages',
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const ticketId = req.params.id as string;
+    const { role, id: userId } = req.user!;
+
+    try {
+      // Customers can only view messages on their own tickets
+      if (role === 'customer') {
+        const customer = await prisma.customer.findUnique({ where: { userId } });
+        const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+        if (!customer || ticket?.customerId !== customer.id) {
+          res.status(403).json({ message: 'Access denied.' });
+          return;
+        }
+      }
+
+      const messages = await prisma.ticketMessage.findMany({
+        where: { ticketId },
+        orderBy: { createdAt: 'asc' },
+        include: { sender: { select: { id: true, name: true, role: true } } },
+      });
+
+      res.status(200).json(messages.map(m => ({
+        id: m.id,
+        body: m.body,
+        createdAt: m.createdAt,
+        sender: { id: m.sender.id, name: m.sender.name, role: m.sender.role },
+      })));
+    } catch (err) {
+      console.error('[tickets/GET/messages]', err);
+      res.status(500).json({ message: 'Internal server error.' });
+    }
+  },
+);
+
+// ── POST /tickets/:id/messages ────────────────────────────────────────────────
+router.post(
+  '/:id/messages',
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const ticketId = req.params.id as string;
+    const { id: userId, role } = req.user!;
+    const { body } = req.body;
+
+    if (!body?.trim()) {
+      res.status(400).json({ message: 'Message body is required.' });
+      return;
+    }
+
+    try {
+      // Customers can only message on their own tickets
+      if (role === 'customer') {
+        const customer = await prisma.customer.findUnique({ where: { userId } });
+        const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+        if (!customer || ticket?.customerId !== customer.id) {
+          res.status(403).json({ message: 'Access denied.' });
+          return;
+        }
+      }
+
+      const message = await prisma.ticketMessage.create({
+        data: { ticketId, senderId: userId, body: body.trim() },
+        include: { sender: { select: { id: true, name: true, role: true } } },
+      });
+
+      res.status(201).json({
+        id: message.id,
+        body: message.body,
+        createdAt: message.createdAt,
+        sender: { id: message.sender.id, name: message.sender.name, role: message.sender.role },
+      });
+    } catch (err) {
+      console.error('[tickets/POST/messages]', err);
       res.status(500).json({ message: 'Internal server error.' });
     }
   },

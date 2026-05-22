@@ -1,11 +1,13 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, RefreshCw, MoreHorizontal,
   X, Wrench, User, Calendar, AlertCircle, ClipboardList, ChevronDown, Check,
+  MessageCircle, Send, Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
+import { ticketsAPI } from '../services/api.js';
 
 const STATUS_CFG = {
   'Completed': { cls: 'badge-completed', label: 'Completed' },
@@ -20,6 +22,156 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } 
 const rowAnim = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 28 } },
+};
+
+const fmtTime = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+// ── MessageBubble ───────────────────────────────────────────────────────
+const MessageBubble = ({ msg, isMine }) => (
+  <div style={{
+    display: 'flex', flexDirection: isMine ? 'row-reverse' : 'row',
+    alignItems: 'flex-end', gap: '0.5rem', marginBottom: '0.85rem',
+  }}>
+    {/* Avatar */}
+    <div style={{
+      width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+      background: isMine
+        ? 'linear-gradient(135deg, var(--primary), var(--primary-deep))'
+        : 'linear-gradient(135deg, var(--accent), #6236FF)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '0.6rem', fontWeight: 700, color: isMine ? '#000' : '#fff',
+      fontFamily: 'var(--font-display)',
+    }}>
+      {msg.sender.name.charAt(0).toUpperCase()}
+    </div>
+    {/* Bubble */}
+    <div style={{ maxWidth: '72%' }}>
+      <div style={{
+        fontSize: '0.7rem', color: 'var(--text-3)',
+        marginBottom: '0.2rem', textAlign: isMine ? 'right' : 'left',
+        fontFamily: 'var(--font-display)',
+      }}>
+        {isMine ? 'You' : msg.sender.name}
+        <span style={{ margin: '0 0.3rem', opacity: 0.5 }}>·</span>
+        {fmtTime(msg.createdAt)}
+      </div>
+      <div style={{
+        background: isMine
+          ? 'linear-gradient(135deg, var(--primary-deep), rgba(0,229,255,0.2))'
+          : 'rgba(255,255,255,0.06)',
+        border: isMine
+          ? '1px solid rgba(0,229,255,0.25)'
+          : '1px solid rgba(255,255,255,0.08)',
+        borderRadius: isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+        padding: '0.6rem 0.9rem',
+        fontSize: '0.88rem',
+        lineHeight: 1.55,
+        color: 'var(--text-1)',
+        wordBreak: 'break-word',
+      }}>
+        {msg.body}
+      </div>
+    </div>
+  </div>
+);
+
+// ── TicketMessages ─────────────────────────────────────────────────
+const TicketMessages = ({ ticketId, currentUser }) => {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft]       = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [sending, setSending]   = useState(false);
+  const bottomRef = useRef(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await ticketsAPI.getMessages(ticketId);
+      setMessages(Array.isArray(data) ? data : []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, [ticketId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // auto-scroll to bottom when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    const body = draft.trim();
+    if (!body || sending) return;
+    setSending(true);
+    try {
+      const msg = await ticketsAPI.sendMessage(ticketId, body);
+      setMessages(prev => [...prev, msg]);
+      setDraft('');
+    } catch (err) {
+      console.error('Send failed:', err);
+    } finally { setSending(false); }
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: 340 }}>
+      {/* Messages scrollable area */}
+      <div style={{
+        flex: 1, overflowY: 'auto', padding: '1rem',
+        background: 'rgba(0,0,0,0.2)', borderRadius: 10,
+        border: '1px solid var(--border-1)',
+        marginBottom: '0.75rem',
+      }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: '2rem', fontSize: '0.85rem' }}>
+            Loading messages…
+          </div>
+        ) : messages.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <MessageCircle size={28} style={{ color: 'var(--text-3)', margin: '0 auto 0.5rem' }} />
+            <p style={{ color: 'var(--text-3)', fontSize: '0.83rem' }}>No messages yet.</p>
+            <p style={{ color: 'var(--text-3)', fontSize: '0.76rem', marginTop: '0.25rem' }}>Start the conversation about this ticket.</p>
+          </div>
+        ) : (
+          messages.map(msg => (
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              isMine={msg.sender.id === currentUser?.id}
+            />
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input area */}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+        <textarea
+          className="input"
+          rows={2}
+          placeholder="Type a message… (Enter to send)"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={handleKey}
+          style={{ flex: 1, resize: 'none', fontSize: '0.88rem', lineHeight: 1.5 }}
+        />
+        <motion.button
+          className="btn btn-primary"
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+          disabled={!draft.trim() || sending}
+          onClick={handleSend}
+          style={{ padding: '0.6rem 0.9rem', minWidth: 0, borderRadius: 10 }}
+        >
+          <Send size={16} />
+        </motion.button>
+      </div>
+    </div>
+  );
 };
 
 const Modal = ({ title, children, onClose, maxWidth = 540 }) => (
@@ -245,6 +397,7 @@ const RepairTickets = () => {
   const [formErr, setFormErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [detailTab, setDetailTab] = useState('info');
 
   const defaultTechId = technicians[0]?.id ?? '';
 
@@ -308,7 +461,7 @@ const RepairTickets = () => {
   };
 
   const canCreate = ['admin', 'receptionist'].includes(role);
-  const canEdit = ['admin', 'receptionist', 'technician'].includes(role);
+  const canChangeStatus = ['admin', 'technician'].includes(role);
 
   return (
     <>
@@ -547,8 +700,10 @@ const RepairTickets = () => {
           const live = tickets.find(x => x.id === t.id) ?? t;
           const tech = technicians.find(x => x.id === live.assignedTo);
           return (
-            <Modal title="Ticket Detail" onClose={() => setModal(null)}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <Modal title="Ticket Detail" onClose={() => { setModal(null); setDetailTab('info'); }} maxWidth={580}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                {/* Header row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="mono" style={{ fontSize: '1.1rem', color: 'var(--primary)', fontWeight: 700 }}>
                     {live.ticketCode ?? live.id}
@@ -557,70 +712,107 @@ const RepairTickets = () => {
                     {STATUS_CFG[live.status]?.label ?? live.status}
                   </span>
                 </div>
-                <div className="divider" />
 
-                {/* Info grid: 2-column for dates */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border-1)' }}>
                   {[
-                    { icon: <User size={14} />, label: 'Client', value: live.customerName, span: true },
-                    { icon: <Wrench size={14} />, label: 'Device', value: live.device, span: true },
-                    { icon: <AlertCircle size={14} />, label: 'Issue', value: live.issue, span: true },
-                    { icon: <Calendar size={14} />, label: 'Date Submitted', value: typeof live.date === 'string' ? live.date.split('T')[0] : new Date(live.date).toISOString().split('T')[0] },
-                    { icon: <Calendar size={14} />, label: live.status === 'Completed' ? 'Date Completed' : 'Est. Pickup', value: live.status === 'Completed' ? (live.updatedAt ? (typeof live.updatedAt === 'string' ? live.updatedAt.split('T')[0] : new Date(live.updatedAt).toISOString().split('T')[0]) : '—') : 'Pending' },
-                    { icon: <User size={14} />, label: 'Assigned To', value: tech?.name ?? live.techName ?? '—', span: true },
-                  ].map(({ icon, label, value, span }) => (
-                    <div key={label} style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', gridColumn: span ? '1 / -1' : undefined }}>
-                      <div style={{ color: 'var(--text-3)', marginTop: 2, flexShrink: 0 }}>{icon}</div>
-                      <div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', fontWeight: 600, marginBottom: '0.12rem' }}>{label}</div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: label === 'Date Submitted' || label === 'Date Completed' || label === 'Est. Pickup' ? 600 : 400, color: label === 'Date Completed' ? 'var(--success)' : label === 'Est. Pickup' && live.status !== 'Completed' ? 'var(--text-3)' : 'var(--text-1)' }}>{value}</div>
-                      </div>
-                    </div>
+                    { key: 'info',     label: 'Details',  icon: <ClipboardList size={13} /> },
+                    { key: 'messages', label: 'Messages', icon: <MessageCircle size={13} /> },
+                    ...(canChangeStatus ? [{ key: 'status', label: 'Status', icon: <Wrench size={13} /> }] : []),
+                  ].map(tab => (
+                    <button key={tab.key} onClick={() => setDetailTab(tab.key)} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.65rem 1rem', background: 'none', border: 'none',
+                      borderBottom: detailTab === tab.key ? '2px solid var(--primary)' : '2px solid transparent',
+                      color: detailTab === tab.key ? 'var(--primary)' : 'var(--text-3)',
+                      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem',
+                      cursor: 'pointer', transition: 'color 0.15s', marginBottom: -1,
+                    }}>
+                      {tab.icon} {tab.label}
+                    </button>
                   ))}
                 </div>
 
-                {live.clientNote && (
-                  <div style={{ padding: '1rem', borderRadius: 10, background: 'var(--warning-dim)', border: '1px solid rgba(255,94,138,0.2)' }}>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem', fontFamily: 'var(--font-display)', fontWeight: 700 }}>Client Note</p>
-                    <p style={{ fontSize: '0.88rem', lineHeight: 1.6 }}>{live.clientNote}</p>
-                  </div>
-                )}
-
-                {live.findings && (
-                  <div style={{ padding: '1rem', borderRadius: 10, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.15)' }}>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem', fontFamily: 'var(--font-display)', fontWeight: 700 }}>Technician Findings</p>
-                    <p style={{ fontSize: '0.85rem', lineHeight: 1.6, fontFamily: 'var(--font-mono)' }}>{live.findings}</p>
-                  </div>
-                )}
-
-                {live.parts?.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>Parts Required</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {live.parts.map(p => (
-                        <span key={p} className="badge badge-neutral" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.73rem', textTransform: 'none', letterSpacing: 0 }}>{p}</span>
+                {/* ── INFO TAB ── */}
+                {detailTab === 'info' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      {[
+                        { icon: <User size={14} />, label: 'Client', value: live.customerName, span: true },
+                        { icon: <Wrench size={14} />, label: 'Device', value: live.device, span: true },
+                        { icon: <AlertCircle size={14} />, label: 'Issue', value: live.issue, span: true },
+                        { icon: <Calendar size={14} />, label: 'Date Submitted', value: typeof live.date === 'string' ? live.date.split('T')[0] : new Date(live.date).toISOString().split('T')[0] },
+                        { icon: <Calendar size={14} />, label: live.status === 'Completed' ? 'Date Completed' : 'Est. Pickup', value: live.status === 'Completed' ? (live.updatedAt ? (typeof live.updatedAt === 'string' ? live.updatedAt.split('T')[0] : new Date(live.updatedAt).toISOString().split('T')[0]) : '—') : 'Pending' },
+                        { icon: <User size={14} />, label: 'Assigned To', value: tech?.name ?? live.techName ?? '—', span: true },
+                      ].map(({ icon, label, value, span }) => (
+                        <div key={label} style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-start', gridColumn: span ? '1 / -1' : undefined }}>
+                          <div style={{ color: 'var(--text-3)', marginTop: 2, flexShrink: 0 }}>{icon}</div>
+                          <div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', fontWeight: 600, marginBottom: '0.12rem' }}>{label}</div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: label === 'Date Submitted' || label === 'Date Completed' || label === 'Est. Pickup' ? 600 : 400, color: label === 'Date Completed' ? 'var(--success)' : label === 'Est. Pickup' && live.status !== 'Completed' ? 'var(--text-3)' : 'var(--text-1)' }}>{value}</div>
+                          </div>
+                        </div>
                       ))}
                     </div>
+
+                    {live.clientNote && (
+                      <div style={{ padding: '1rem', borderRadius: 10, background: 'var(--warning-dim)', border: '1px solid rgba(255,94,138,0.2)' }}>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem', fontFamily: 'var(--font-display)', fontWeight: 700 }}>Client Note</p>
+                        <p style={{ fontSize: '0.88rem', lineHeight: 1.6 }}>{live.clientNote}</p>
+                      </div>
+                    )}
+
+                    {live.findings && (
+                      <div style={{ padding: '1rem', borderRadius: 10, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.15)' }}>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem', fontFamily: 'var(--font-display)', fontWeight: 700 }}>Technician Findings</p>
+                        <p style={{ fontSize: '0.85rem', lineHeight: 1.6, fontFamily: 'var(--font-mono)' }}>{live.findings}</p>
+                      </div>
+                    )}
+
+                    {live.parts?.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem', fontFamily: 'var(--font-display)', fontWeight: 600 }}>Parts Required</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          {live.parts.map(p => (
+                            <span key={p} className="badge badge-neutral" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.73rem', textTransform: 'none', letterSpacing: 0 }}>{p}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {canEdit && (
-                  <>
-                    <div className="divider" />
-                    <div>
-                      <label className="label">Update Status</label>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {['Received', 'In Progress', 'Awaiting Parts', 'Completed'].map(s => (
-                          <motion.button key={s} whileTap={{ scale: 0.95 }}
-                            className={live.status === s ? 'btn btn-primary' : 'btn btn-ghost'}
-                            style={{ fontSize: '0.78rem', padding: '0.45rem 0.9rem' }}
-                            onClick={() => handleStatusUpdate(live.id, s)}>
-                            {s}
-                          </motion.button>
-                        ))}
-                      </div>
+                {/* ── MESSAGES TAB ── */}
+                {detailTab === 'messages' && (
+                  <TicketMessages ticketId={live.id} currentUser={user} />
+                )}
+
+                {/* ── STATUS TAB ── */}
+                {detailTab === 'status' && canChangeStatus && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <p style={{ fontSize: '0.83rem', color: 'var(--text-2)', lineHeight: 1.6 }}>
+                      Update the repair status for ticket <strong style={{ color: 'var(--primary)' }}>{live.ticketCode}</strong>.
+                      This will be logged in the activity trail and visible to the customer.
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+                      {['Received', 'In Progress', 'Awaiting Parts', 'Completed'].map(s => (
+                        <motion.button key={s} whileTap={{ scale: 0.95 }}
+                          className={live.status === s ? 'btn btn-primary' : 'btn btn-ghost'}
+                          style={{
+                            fontSize: '0.82rem', padding: '0.7rem',
+                            borderRadius: 10, gap: '0.4rem',
+                            border: live.status === s ? undefined : '1px solid var(--border-2)',
+                          }}
+                          onClick={() => handleStatusUpdate(live.id, s)}>
+                          {live.status === s && <Check size={13} />}
+                          {s}
+                        </motion.button>
+                      ))}
                     </div>
-                  </>
+                    <div style={{ padding: '0.75rem', borderRadius: 8, background: 'rgba(0,229,255,0.05)', border: '1px solid rgba(0,229,255,0.12)', fontSize: '0.78rem', color: 'var(--text-3)' }}>
+                      🔒 Only technicians and admins can change ticket status.
+                    </div>
+                  </div>
                 )}
 
                 <button className="btn btn-ghost" onClick={() => setModal(null)} style={{ width: '100%', marginTop: '0.25rem' }}>Close</button>

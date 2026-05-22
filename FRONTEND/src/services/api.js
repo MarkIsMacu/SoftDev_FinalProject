@@ -94,6 +94,9 @@ export const ticketsAPI = {
     api.patch(`/tickets/${id}/assign`, { technicianId: techId }),
 
   delete: (id) => api.delete(`/tickets/${id}`),
+
+  getMessages: (id) => api.get(`/tickets/${id}/messages`),
+  sendMessage: (id, body) => api.post(`/tickets/${id}/messages`, { body }),
 };
 
 export const usersAPI = {
