@@ -35,7 +35,8 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser(newUser);
       return true;
-    } catch {
+    } catch (err) {
+      console.error('[AuthContext] login failed:', err);
       return false;
     }
   }, []);
