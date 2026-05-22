@@ -101,6 +101,13 @@ export const DataProvider = ({ children }) => {
     if (isAdmin) dashboardAPI.getStats().then(setStats).catch(() => {});
   }, [isAdmin]);
 
+  const deleteCustomer = useCallback(async (customerId) => {
+    await customersAPI.delete(customerId);
+    setCustomers(prev => prev.filter(c => c.id !== customerId));
+    setTickets(prev => prev.filter(t => t.customerId !== customerId));
+    if (isAdmin) dashboardAPI.getStats().then(setStats).catch(() => {});
+  }, [isAdmin]);
+
   const fetchAllUsers = useCallback(async () => {
     const users = await usersAPI.getAll();
     setAllUsers(users);
@@ -114,9 +121,17 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   const deleteUser = useCallback(async (userId) => {
+    const deletedUser = allUsers.find(u => u.id === userId);
     await usersAPI.delete(userId);
     setAllUsers(prev => prev.filter(u => u.id !== userId));
-  }, []);
+    if (deletedUser && deletedUser.role === 'customer') {
+      const linkedCustomer = customers.find(c => c.accountEmail === deletedUser.email);
+      if (linkedCustomer) {
+        setCustomers(prev => prev.filter(c => c.id !== linkedCustomer.id));
+        setTickets(prev => prev.filter(t => t.customerId !== linkedCustomer.id));
+      }
+    }
+  }, [allUsers, customers]);
 
   const getTicketsForTech = useCallback((techId) =>
     tickets.filter(t => t.assignedTo === techId && t.status !== 'Completed'),
@@ -171,6 +186,7 @@ export const DataProvider = ({ children }) => {
       updateTicketWorkData,
       registerCustomer,
       deleteTicket,
+      deleteCustomer,
       fetchAllUsers,
       updateUser,
       deleteUser,

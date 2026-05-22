@@ -196,4 +196,68 @@ router.get(
   },
 );
 
+router.delete(
+  '/:id',
+  authorize('admin', 'receptionist'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const id = req.params.id as string;
+
+    try {
+      const customer = await prisma.customer.findUnique({
+        where: { id },
+        include: { user: true },
+      });
+
+      if (!customer) {
+        res.status(404).json({ message: 'Customer not found.' });
+        return;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // 1. Find all tickets belonging to this Customer
+        const tickets = await tx.ticket.findMany({
+          where: { customerId: id },
+          select: { id: true },
+        });
+        const ticketIds = tickets.map((t) => t.id);
+
+        if (ticketIds.length > 0) {
+          // 2. Delete dependent ticket child records
+          await tx.ticketPart.deleteMany({
+            where: { ticketId: { in: ticketIds } },
+          });
+          await tx.activityLog.deleteMany({
+            where: { ticketId: { in: ticketIds } },
+          });
+          await tx.ticketMessage.deleteMany({
+            where: { ticketId: { in: ticketIds } },
+          });
+          // 3. Delete the tickets themselves
+          await tx.ticket.deleteMany({
+            where: { id: { in: ticketIds } },
+          });
+        }
+
+        // 4. Delete the Customer profile record
+        await tx.customer.delete({
+          where: { id },
+        });
+
+        // 5. Delete the associated User login account if it exists
+        if (customer.userId) {
+          await tx.user.delete({
+            where: { id: customer.userId },
+          });
+        }
+      });
+
+      res.status(200).json({ message: 'Customer and all associated data deleted successfully.' });
+    } catch (err: any) {
+      if (err.code === 'P2025') { res.status(404).json({ message: 'Customer not found.' }); return; }
+      console.error('[customers/DELETE]', err);
+      res.status(500).json({ message: 'Internal server error.' });
+    }
+  },
+);
+
 export default router;

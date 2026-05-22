@@ -126,6 +126,43 @@ router.delete(
         if (existingUser.role === 'technician') {
           await tx.technician.deleteMany({ where: { email: existingUser.email } });
         }
+
+        // Find customer profile linked to this user
+        const customer = await tx.customer.findUnique({
+          where: { userId: id },
+        });
+
+        if (customer) {
+          // Find all tickets belonging to this customer
+          const tickets = await tx.ticket.findMany({
+            where: { customerId: customer.id },
+            select: { id: true },
+          });
+          const ticketIds = tickets.map((t) => t.id);
+
+          if (ticketIds.length > 0) {
+            // Delete dependent ticket child records
+            await tx.ticketPart.deleteMany({
+              where: { ticketId: { in: ticketIds } },
+            });
+            await tx.activityLog.deleteMany({
+              where: { ticketId: { in: ticketIds } },
+            });
+            await tx.ticketMessage.deleteMany({
+              where: { ticketId: { in: ticketIds } },
+            });
+            // Delete the tickets themselves
+            await tx.ticket.deleteMany({
+              where: { id: { in: ticketIds } },
+            });
+          }
+
+          // Delete the Customer profile
+          await tx.customer.delete({
+            where: { id: customer.id },
+          });
+        }
+
         await tx.user.delete({ where: { id } });
       });
 

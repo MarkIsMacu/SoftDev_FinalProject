@@ -5,11 +5,11 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('auth_token'));
-  const [loading, setLoading] = useState(!!localStorage.getItem('auth_token'));
+  const [token, setToken] = useState(sessionStorage.getItem('auth_token'));
+  const [loading, setLoading] = useState(!!sessionStorage.getItem('auth_token'));
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
+    const storedToken = sessionStorage.getItem('auth_token');
     if (!storedToken) {
       setTimeout(() => setLoading(false), 0);
       return;
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       })
       .catch(() => {
-        localStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_token');
         setToken(null);
         setUser(null);
         setLoading(false);
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (email, password) => {
     try {
       const { token: newToken, user: newUser } = await authAPI.login(email, password);
-      localStorage.setItem('auth_token', newToken);
+      sessionStorage.setItem('auth_token', newToken);
       setToken(newToken);
       setUser(newUser);
       return true;
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try { await authAPI.logout(); } catch { /* ignore — token already invalid */ }
-    localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_token');
     setToken(null);
     setUser(null);
   }, []);

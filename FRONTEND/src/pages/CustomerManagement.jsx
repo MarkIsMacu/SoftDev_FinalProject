@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserPlus, Phone, Mail, ChevronRight, RefreshCw, X, User, Clock, Wrench, Copy, Check, KeyRound } from 'lucide-react';
+import { Search, UserPlus, Phone, Mail, ChevronRight, RefreshCw, X, User, Clock, Wrench, Copy, Check, KeyRound, Trash2, AlertCircle } from 'lucide-react';
 import { useData } from '../context/DataContext.jsx';
 import { suggestLoginEmail, generateTempPassword } from '../store/accounts.js';
 
@@ -51,7 +51,7 @@ const CredRow = ({ label, value }) => {
 const EMPTY_FORM = { name: '', phone: '', email: '', loginEmail: '', tempPassword: '', notes: '' };
 
 const CustomerManagement = () => {
-  const { customers, tickets, registerCustomer, refreshCustomers } = useData();
+  const { customers, tickets, registerCustomer, refreshCustomers, deleteCustomer } = useData();
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -398,9 +398,14 @@ const CustomerManagement = () => {
                   </div>
                 ))}
                 {c.notes && <><div className="divider" /><div><p className="label">Notes</p><p style={{ fontSize: '0.88rem', color: 'var(--text-2)', lineHeight: 1.6 }}>{c.notes}</p></div></>}
-                <motion.button className="btn btn-primary" whileHover={{ y: -2 }} onClick={() => setModal({ type: 'history', customer: c })} style={{ gap: '0.4rem', marginTop: '0.25rem' }}>
-                  <Clock size={15} /> View Repair History ({total})
-                </motion.button>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <motion.button className="btn btn-primary" whileHover={{ y: -2 }} onClick={() => { setFormErr(''); setModal({ type: 'history', customer: c }); }} style={{ flex: 2, gap: '0.4rem' }}>
+                    <Clock size={15} /> View History ({total})
+                  </motion.button>
+                  <motion.button className="btn btn-ghost" whileHover={{ y: -2 }} onClick={() => { setFormErr(''); setModal({ type: 'deleteConfirm', customer: c }); }} style={{ flex: 1, background: 'rgba(255,94,138,0.1)', border: '1px solid rgba(255,94,138,0.3)', color: 'var(--warning)', gap: '0.4rem' }}>
+                    <Trash2 size={15} /> Delete
+                  </motion.button>
+                </div>
               </div>
             </Modal>
           );
@@ -427,6 +432,51 @@ const CustomerManagement = () => {
                   ))}
                 </div>
               }
+            </Modal>
+          );
+        })()}
+
+        {modal?.type === 'deleteConfirm' && (() => {
+          const c = modal.customer;
+          const total = getTotal(c.id);
+          return (
+            <Modal title="Delete Client Profile" onClose={() => setModal({ type: 'profile', customer: c })} maxW={420}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,94,138,0.12)', border: '1px solid rgba(255,94,138,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AlertCircle size={26} color="var(--warning)" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.4rem' }}>Delete <strong style={{ color: 'var(--primary)' }}>{c.name}</strong>?</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', lineHeight: 1.6 }}>
+                    This action is permanent.<br />
+                    All <strong style={{ color: 'var(--warning)' }}>{total} tickets</strong> and history belonging to this client will be deleted completely.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+                  <motion.button className="btn btn-ghost" style={{ flex: 1, background: 'rgba(255,94,138,0.1)', border: '1px solid rgba(255,94,138,0.3)', color: 'var(--warning)' }}
+                    whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+                    onClick={async () => {
+                      setSubmitting(true);
+                      try {
+                        await deleteCustomer(c.id);
+                        setModal(null);
+                      } catch (err) {
+                        setFormErr(err.message);
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    disabled={submitting}>
+                    {submitting ? 'Deleting…' : 'Yes, Delete'}
+                  </motion.button>
+                  <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setModal({ type: 'profile', customer: c })}>Cancel</button>
+                </div>
+                {formErr && (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--warning)', padding: '0.5rem 0.75rem', background: 'rgba(255,94,138,0.08)', borderRadius: 8, border: '1px solid rgba(255,94,138,0.2)', width: '100%' }}>
+                    {formErr}
+                  </p>
+                )}
+              </div>
             </Modal>
           );
         })()}
